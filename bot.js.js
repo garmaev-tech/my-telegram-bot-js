@@ -1,9 +1,13 @@
+const express = require('express');
 const { Telegraf } = require('telegraf');
 const axios = require('axios');
 const { Octokit } = require('@octokit/rest');
 const dotenv = require('dotenv');
 
 dotenv.config();
+
+const app = express();
+app.use(express.json());
 
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
@@ -30,7 +34,7 @@ async function generateAndUpload(ctx, desc) {
 
         const prompt = `
 Сгенерируй ПОЛНЫЙ рабочий Telegram-бот на Node.js (JavaScript) для: ${desc}
-Включи: telegraf, axios, dotenv, package.json, Dockerfile для Render, .env.example, README.md.
+Включи: telegraf, express, axios, dotenv, package.json, Dockerfile для Render, .env.example, README.md.
 Код должен запуститься без правок.
 `;
 
@@ -46,10 +50,8 @@ async function generateAndUpload(ctx, desc) {
 
         const generatedText = response.data.choices[0].message.content;
 
-        // Извлекаем файлы
         const files = extractFilesFromResponse(generatedText);
 
-        // Создаём репозиторий
         const repoName = `node-bot-${ctx.from.id}-${Date.now()}`;
         const repo = await octokit.repos.createInOrg({
             org: 'garmaev-tech',
@@ -57,7 +59,6 @@ async function generateAndUpload(ctx, desc) {
             private: true,
         });
 
-        // Загружаем файлы
         for (const [filename, content] of Object.entries(files)) {
             await octokit.repos.createOrUpdateFileContents({
                 owner: 'garmaev-tech',
@@ -99,7 +100,6 @@ function extractFilesFromResponse(text) {
         }
     }
 
-    // Если package.json не найден, создаём базовый
     if (!files['package.json']) {
         files['package.json'] = JSON.stringify({
             name: "my-node-telegram-bot",
@@ -111,6 +111,7 @@ function extractFilesFromResponse(text) {
             },
             dependencies: {
                 "telegraf": "^4.16.3",
+                "express": "^4.18.2",
                 "axios": "^1.6.0",
                 "dotenv": "^16.3.1",
                 "@octokit/rest": "^20.0.0"
@@ -121,8 +122,21 @@ function extractFilesFromResponse(text) {
     return files;
 }
 
-bot.launch();
+// Установка webhook
+bot.telegram.setWebhook(`https://<your-app-name>.onrender.com/secret-path`);
 
-// Graceful shutdown
-process.once('SIGINT', () => bot.stop());
-process.once('SIGTERM', () => bot.stop());
+// Обработка webhook
+app.use('/secret-path', async (req, res) => {
+    await bot.handleUpdate(req.body);
+    res.status(200).send('OK');
+});
+
+// Проверка, что Render может подключиться
+app.get('/', (req, res) => {
+    res.send('Bot is running!');
+});
+
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});
