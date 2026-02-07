@@ -1,45 +1,36 @@
-const TelegramBot = require('node-telegram-bot-api');
+const { Telegraf } = require('telegraf');
 const axios = require('axios');
 const { Octokit } = require('@octokit/rest');
 const dotenv = require('dotenv');
 
-// Загружаем .env
 dotenv.config();
 
-const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const MEGALLM_API_KEY = process.env.MEGALLM_API_KEY;
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-
-// Инициализируем бота
-const bot = new TelegramBot(TELEGRAM_TOKEN, { polling: true });
-
-// Инициализируем GitHub
-const octokit = new Octokit({ auth: GITHUB_TOKEN });
+const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
+const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
 
 // Команда /start
-bot.onText(/\/start/, (msg) => {
-    const chatId = msg.chat.id;
-    bot.sendMessage(chatId, 'Привет! Напиши /generate для генерации Node.js-бота.');
+bot.start((ctx) => {
+    ctx.reply('Привет! Напиши /generate для генерации Node.js-бота.');
 });
 
 // Команда /generate
-bot.onText(/\/generate/, async (msg) => {
-    const chatId = msg.chat.id;
-    bot.sendMessage(chatId, 'Введите описание Node.js-бота:');
-    bot.once('message', async (msg) => {
-        const description = msg.text;
-        await generateAndUpload(chatId, description);
+bot.command('generate', async (ctx) => {
+    await ctx.reply('Введите описание Node.js-бота:');
+    bot.on('text', async (ctx) => {
+        const description = ctx.message.text;
+        await generateAndUpload(ctx, description);
     });
 });
 
 // Генерация и загрузка в GitHub
-async function generateAndUpload(chatId, desc) {
+async function generateAndUpload(ctx, desc) {
+    const chatId = ctx.chat.id;
     try {
-        bot.sendMessage(chatId, 'Генерирую код...');
+        await ctx.reply('Генерирую код...');
 
         const prompt = `
 Сгенерируй ПОЛНЫЙ рабочий Telegram-бот на Node.js (JavaScript) для: ${desc}
-Включи: node-telegram-bot-api, axios, dotenv, package.json, Dockerfile для Render, .env.example, README.md.
+Включи: telegraf, axios, dotenv, package.json, Dockerfile для Render, .env.example, README.md.
 Код должен запуститься без правок.
 `;
 
@@ -48,7 +39,7 @@ async function generateAndUpload(chatId, desc) {
             messages: [{ role: 'user', content: prompt }]
         }, {
             headers: {
-                'Authorization': `Bearer ${MEGALLM_API_KEY}`,
+                'Authorization': `Bearer ${process.env.MEGALLM_API_KEY}`,
                 'Content-Type': 'application/json'
             }
         });
@@ -59,9 +50,9 @@ async function generateAndUpload(chatId, desc) {
         const files = extractFilesFromResponse(generatedText);
 
         // Создаём репозиторий
-        const repoName = `node-bot-${msg.from.id}-${Date.now()}`;
+        const repoName = `node-bot-${ctx.from.id}-${Date.now()}`;
         const repo = await octokit.repos.createInOrg({
-            org:'garmaev-tech',
+            org: 'garmaev-tech',
             name: repoName,
             private: true,
         });
@@ -69,7 +60,7 @@ async function generateAndUpload(chatId, desc) {
         // Загружаем файлы
         for (const [filename, content] of Object.entries(files)) {
             await octokit.repos.createOrUpdateFileContents({
-                owner:'garmaev-tech',
+                owner: 'garmaev-tech',
                 repo: repoName,
                 path: filename,
                 message: `Add ${filename}`,
@@ -78,11 +69,11 @@ async function generateAndUpload(chatId, desc) {
         }
 
         const repoUrl = repo.data.html_url;
-        bot.sendMessage(chatId, `Код Node.js-бота загружен в GitHub: ${repoUrl}`);
+        await ctx.reply(`Код Node.js-бота загружен в GitHub: ${repoUrl}`);
 
     } catch (error) {
         console.error(error);
-        bot.sendMessage(chatId, `Ошибка: ${error.message}`);
+        await ctx.reply(`Ошибка: ${error.message}`);
     }
 }
 
@@ -119,12 +110,19 @@ function extractFilesFromResponse(text) {
                 start: "node bot.js"
             },
             dependencies: {
-                "node-telegram-bot-api": "^0.64.0",
+                "telegraf": "^4.16.3",
                 "axios": "^1.6.0",
-                "dotenv": "^16.3.1"
+                "dotenv": "^16.3.1",
+                "@octokit/rest": "^20.0.0"
             }
         }, null, 2);
     }
 
     return files;
 }
+
+bot.launch();
+
+// Graceful shutdown
+process.once('SIGINT', () => bot.stop());
+process.once('SIGTERM', () => bot.stop());
