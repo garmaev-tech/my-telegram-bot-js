@@ -61,7 +61,7 @@ async function generateAndUpload(chatId, desc) {
         // Создаём репозиторий
         const repoName = `node-bot-${msg.from.id}-${Date.now()}`;
         const repo = await octokit.repos.createInOrg({
-            org:'garmaev-tech'
+            org:'garmaev-tech',
             name: repoName,
             private: true,
         });
@@ -69,7 +69,7 @@ async function generateAndUpload(chatId, desc) {
         // Загружаем файлы
         for (const [filename, content] of Object.entries(files)) {
             await octokit.repos.createOrUpdateFileContents({
-                owner:'garmaev-tech'
+                owner:'garmaev-tech',
                 repo: repoName,
                 path: filename,
                 message: `Add ${filename}`,
