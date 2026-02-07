@@ -1,7 +1,7 @@
 {
-  "name": "my-telegram-bot-js",
+  "name": "my-node-telegram-bot",
   "version": "1.0.0",
-  "description": "",
+  "description": "Generated Node.js Telegram Bot",
   "main": "bot.js",
   "scripts": {
     "start": "node bot.js"
