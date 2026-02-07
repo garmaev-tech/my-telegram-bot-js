@@ -123,7 +123,7 @@ function extractFilesFromResponse(text) {
 }
 
 // Установка webhook
-bot.telegram.setWebhook(`https://<your-app-name>.onrender.com/secret-path`);
+bot.telegram.setWebhook(`https://my-telegram-bot-js.onrender.com`);
 
 // Обработка webhook
 app.use('/secret-path', async (req, res) => {
