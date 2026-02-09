@@ -116,20 +116,20 @@ function mainMenu() {
     reply_markup: {
       inline_keyboard: [
         [
-          { text: '🔑 Установить API-ключ', callback_ 'set_api_key' },
-          { text: '⚙️ Установить модель', callback_ 'set_model' }
+          { text: '🔑 Установить API-ключ', callback_data: 'set_api_key' },
+          { text: '⚙️ Установить модель', callback_data: 'set_model' }
         ],
         [
-          { text: '🔗 Установить URL', callback_ 'set_endpoint' },
-          { text: '📋 Текущие настройки', callback_ 'current_settings' }
+          { text: '🔗 Установить URL', callback_data: 'set_endpoint' },
+          { text: '📋 Текущие настройки', callback_data: 'current_settings' }
         ],
         [
-          { text: '📤 GitHub токен', callback_ 'set_github_token' },
-          { text: '📋 Список провайдеров', callback_ 'list_providers' }
+          { text: '📤 GitHub токен', callback_data: 'set_github_token' },
+          { text: '📋 Список провайдеров', callback_data: 'list_providers' }
         ],
         [
-          { text: '❓ Помощь', callback_ 'help' },
-          { text: '📝 Сгенерировать код', callback_ 'generate_code' }
+          { text: '❓ Помощь', callback_data: 'help' },
+          { text: '📝 Сгенерировать код', callback_data: 'generate_code' }
         ]
       ]
     }
