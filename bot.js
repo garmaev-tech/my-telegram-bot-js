@@ -61,11 +61,7 @@ async function loadSettings() {
 
 // Сохранение настроек
 async function saveSettings(settings) {
-  try {
-    await fs.writeFile('bot_settings.json', JSON.stringify(settings, null, 2));
-  } catch (e) {
-    console.error('Ошибка сохранения настроек:', e);
-  }
+  await fs.writeFile('bot_settings.json', JSON.stringify(settings, null, 2));
 }
 
 // Конфигурация провайдеров
