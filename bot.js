@@ -1,3 +1,4 @@
+
 const TelegramBot = require('node-telegram-bot-api');
 const fs = require('fs').promises;
 const fetch = require('node-fetch');
@@ -9,7 +10,7 @@ const bot = new TelegramBot(token, { polling: true });
 
 const SETTINGS_FILE = 'bot_settings.json';
 
-// агрузка настроек
+// Р—Р°РіСЂСѓР·РєР° РЅР°СЃС‚СЂРѕРµРє
 async function loadSettings() {
   try {
     const data = await fs.readFile(SETTINGS_FILE, 'utf8');
@@ -19,69 +20,69 @@ async function loadSettings() {
   }
 }
 
-// Сохранение настроек
+// РЎРѕС…СЂР°РЅРµРЅРёРµ РЅР°СЃС‚СЂРѕРµРє
 async function saveSettings(settings) {
   await fs.writeFile(SETTINGS_FILE, JSON.stringify(settings, null, 2));
 }
 
-// лавное меню с кнопками
+// Р“Р»Р°РІРЅРѕРµ РјРµРЅСЋ СЃ РєРЅРѕРїРєР°РјРё
 function mainMenu() {
   return {
     reply_markup: {
       inline_keyboard: [
         [
-          { text: '?? становить API-ключ', callback_data: 'set_api_key' },
-          { text: '?? становить модель', callback_data: 'set_model' }
+          { text: 'рџ”‘ РЈСЃС‚Р°РЅРѕРІРёС‚СЊ API-РєР»СЋС‡', callback_data: 'set_api_key' },
+          { text: 'вљ™пёЏ РЈСЃС‚Р°РЅРѕРІРёС‚СЊ РјРѕРґРµР»СЊ', callback_data: 'set_model' }
         ],
         [
-          { text: '?? Текущая модель', callback_data: 'current_model' },
-          { text: '?? GitHub токен', callback_data: 'set_github_token' }
+          { text: 'рџ“‹ РўРµРєСѓС‰Р°СЏ РјРѕРґРµР»СЊ', callback_data: 'current_model' },
+          { text: 'рџ“¤ GitHub С‚РѕРєРµРЅ', callback_data: 'set_github_token' }
         ],
         [
-          { text: '?? Сгенерировать код', callback_data: 'generate_code' },
-          { text: '? омощь', callback_data: 'help' }
+          { text: 'рџ“ќ РЎРіРµРЅРµСЂРёСЂРѕРІР°С‚СЊ РєРѕРґ', callback_data: 'generate_code' },
+          { text: 'вќ“ РџРѕРјРѕС‰СЊ', callback_data: 'help' }
         ]
       ]
     }
   };
 }
 
-// бработка команды /start
+// РћР±СЂР°Р±РѕС‚РєР° РєРѕРјР°РЅРґС‹ /start
 bot.onText(/\/start/, (msg) => {
   const chatId = msg.chat.id;
-  bot.sendMessage(chatId, 'ривет! ыбери действие:', mainMenu());
+  bot.sendMessage(chatId, 'РџСЂРёРІРµС‚! Р’С‹Р±РµСЂРё РґРµР№СЃС‚РІРёРµ:', mainMenu());
 });
 
-// бработка нажатий на кнопки
+// РћР±СЂР°Р±РѕС‚РєР° РЅР°Р¶Р°С‚РёР№ РЅР° РєРЅРѕРїРєРё
 bot.on('callback_query', async (query) => {
   const chatId = query.message.chat.id;
   const data = query.data;
 
   if (data === 'set_api_key') {
-    bot.sendMessage(chatId, 'тправь команду: /set_api_key provider api_key');
+    bot.sendMessage(chatId, 'РћС‚РїСЂР°РІСЊ РєРѕРјР°РЅРґСѓ: /set_api_key provider api_key');
   } else if (data === 'set_model') {
-    bot.sendMessage(chatId, 'тправь команду: /set_model provider model_name');
+    bot.sendMessage(chatId, 'РћС‚РїСЂР°РІСЊ РєРѕРјР°РЅРґСѓ: /set_model provider model_name');
   } else if (data === 'current_model') {
-    bot.sendMessage(chatId, 'тправь команду: /current_model provider');
+    bot.sendMessage(chatId, 'РћС‚РїСЂР°РІСЊ РєРѕРјР°РЅРґСѓ: /current_model provider');
   } else if (data === 'set_github_token') {
-    bot.sendMessage(chatId, 'тправь команду: /set_github_token token');
+    bot.sendMessage(chatId, 'РћС‚РїСЂР°РІСЊ РєРѕРјР°РЅРґСѓ: /set_github_token token');
   } else if (data === 'generate_code') {
-    bot.sendMessage(chatId, 'тправь команду: /code описание_проекта');
+    bot.sendMessage(chatId, 'РћС‚РїСЂР°РІСЊ РєРѕРјР°РЅРґСѓ: /code РѕРїРёСЃР°РЅРёРµ_РїСЂРѕРµРєС‚Р°');
   } else if (data === 'help') {
-    bot.sendMessage(chatId, 
-оступные команды:
-• /set_api_key - установить API-ключ
-• /set_model - установить модель
-• /current_model - показать текущую модель
-• /set_github_token - установить GitHub токен
-• /code - сгенерировать и загрузить код
-);
+    bot.sendMessage(chatId, `
+Р”РѕСЃС‚СѓРїРЅС‹Рµ РєРѕРјР°РЅРґС‹:
+вЂў /set_api_key - СѓСЃС‚Р°РЅРѕРІРёС‚СЊ API-РєР»СЋС‡
+вЂў /set_model - СѓСЃС‚Р°РЅРѕРІРёС‚СЊ РјРѕРґРµР»СЊ
+вЂў /current_model - РїРѕРєР°Р·Р°С‚СЊ С‚РµРєСѓС‰СѓСЋ РјРѕРґРµР»СЊ
+вЂў /set_github_token - СѓСЃС‚Р°РЅРѕРІРёС‚СЊ GitHub С‚РѕРєРµРЅ
+вЂў /code - СЃРіРµРЅРµСЂРёСЂРѕРІР°С‚СЊ Рё Р·Р°РіСЂСѓР·РёС‚СЊ РєРѕРґ
+`);
   }
 
   bot.answerCallbackQuery(query.id);
 });
 
-// оманда для списка моделей
+// РљРѕРјР°РЅРґР° РґР»СЏ СЃРїРёСЃРєР° РјРѕРґРµР»РµР№
 bot.onText(/\/list_models/, async (msg) => {
   const chatId = msg.chat.id;
 
@@ -94,18 +95,18 @@ bot.onText(/\/list_models/, async (msg) => {
     'mega-flash'
   ];
 
-  const message = 'оступные модели:\n\n' + models.map(m => - \).join('\n');
+  const message = 'Р”РѕСЃС‚СѓРїРЅС‹Рµ РјРѕРґРµР»Рё:\n\n' + models.map(m => `- ${m}`).join('\n');
 
   bot.sendMessage(chatId, message);
 });
 
-// становка API-ключа
+// РЈСЃС‚Р°РЅРѕРІРєР° API-РєР»СЋС‡Р°
 bot.onText(/\/set_api_key (.+)/, async (msg, match) => {
   const chatId = msg.chat.id;
   const [provider, key] = match[1].split(/\s+/);
 
   if (!provider || !key) {
-    bot.sendMessage(chatId, 'ормат: /set_api_key provider api_key');
+    bot.sendMessage(chatId, 'Р¤РѕСЂРјР°С‚: /set_api_key provider api_key');
     return;
   }
 
@@ -113,16 +114,16 @@ bot.onText(/\/set_api_key (.+)/, async (msg, match) => {
   settings.apiKeys[provider] = key;
   await saveSettings(settings);
 
-  bot.sendMessage(chatId, \API-ключ для \ установлен.\);
+  bot.sendMessage(chatId, `API-РєР»СЋС‡ РґР»СЏ ${provider} СѓСЃС‚Р°РЅРѕРІР»РµРЅ.`);
 });
 
-// становка модели
+// РЈСЃС‚Р°РЅРѕРІРєР° РјРѕРґРµР»Рё
 bot.onText(/\/set_model (.+)/, async (msg, match) => {
   const chatId = msg.chat.id;
   const [provider, model] = match[1].split(/\s+/);
 
   if (!provider || !model) {
-    bot.sendMessage(chatId, 'ормат: /set_model provider model_name');
+    bot.sendMessage(chatId, 'Р¤РѕСЂРјР°С‚: /set_model provider model_name');
     return;
   }
 
@@ -130,10 +131,10 @@ bot.onText(/\/set_model (.+)/, async (msg, match) => {
   settings.models[provider] = model;
   await saveSettings(settings);
 
-  bot.sendMessage(chatId, \одель для \: \\);
+  bot.sendMessage(chatId, `РњРѕРґРµР»СЊ РґР»СЏ ${provider}: ${model}`);
 });
 
-// оказ текущей модели
+// РџРѕРєР°Р· С‚РµРєСѓС‰РµР№ РјРѕРґРµР»Рё
 bot.onText(/\/current_model (.+)/, async (msg, match) => {
   const chatId = msg.chat.id;
   const provider = match[1];
@@ -142,14 +143,14 @@ bot.onText(/\/current_model (.+)/, async (msg, match) => {
   const model = settings.models[provider];
 
   if (!model) {
-    bot.sendMessage(chatId, \одель для \ не установлена.\);
+    bot.sendMessage(chatId, `РњРѕРґРµР»СЊ РґР»СЏ ${provider} РЅРµ СѓСЃС‚Р°РЅРѕРІР»РµРЅР°.`);
     return;
   }
 
-  bot.sendMessage(chatId, \Текущая модель для \: \\);
+  bot.sendMessage(chatId, `РўРµРєСѓС‰Р°СЏ РјРѕРґРµР»СЊ РґР»СЏ ${provider}: ${model}`);
 });
 
-// становка GitHub токена
+// РЈСЃС‚Р°РЅРѕРІРєР° GitHub С‚РѕРєРµРЅР°
 bot.onText(/\/set_github_token (.+)/, async (msg, match) => {
   const chatId = msg.chat.id;
   const token = match[1].trim();
@@ -158,10 +159,10 @@ bot.onText(/\/set_github_token (.+)/, async (msg, match) => {
   settings.githubToken = token;
   await saveSettings(settings);
 
-  bot.sendMessage(chatId, 'GitHub токен установлен.');
+  bot.sendMessage(chatId, 'GitHub С‚РѕРєРµРЅ СѓСЃС‚Р°РЅРѕРІР»РµРЅ.');
 });
 
-// енерация кода
+// Р“РµРЅРµСЂР°С†РёСЏ РєРѕРґР°
 bot.onText(/\/code (.+)/, async (msg, match) => {
   const chatId = msg.chat.id;
   const query = match[1];
@@ -172,22 +173,22 @@ bot.onText(/\/code (.+)/, async (msg, match) => {
   const githubToken = settings.githubToken;
 
   if (!apiKey || !model) {
-    bot.sendMessage(chatId, 'Сначала установите API-ключ и модель: /set_api_key и /set_model');
+    bot.sendMessage(chatId, 'РЎРЅР°С‡Р°Р»Р° СѓСЃС‚Р°РЅРѕРІРёС‚Рµ API-РєР»СЋС‡ Рё РјРѕРґРµР»СЊ: /set_api_key Рё /set_model');
     return;
   }
 
-  const prompt = \
-    Сгенерируй Ы рабочий Telegram-бот на Node.js (JavaScript) для: \
-    ключи: telegraf, express, axios, dotenv, package.json, Dockerfile для Render, .env.example, README.md.
-    од должен запуститься без правок.
-  \;
+  const prompt = `
+    РЎРіРµРЅРµСЂРёСЂСѓР№ РџРћР›РќР«Р™ СЂР°Р±РѕС‡РёР№ Telegram-Р±РѕС‚ РЅР° Node.js (JavaScript) РґР»СЏ: ${query}
+    Р’РєР»СЋС‡Рё: telegraf, express, axios, dotenv, package.json, Dockerfile РґР»СЏ Render, .env.example, README.md.
+    РљРѕРґ РґРѕР»Р¶РµРЅ Р·Р°РїСѓСЃС‚РёС‚СЊСЃСЏ Р±РµР· РїСЂР°РІРѕРє.
+  `;
 
   try {
     const response = await fetch('https://ai.megallm.io/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': \Bearer \\
+        'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
         model: model,
@@ -197,41 +198,41 @@ bot.onText(/\/code (.+)/, async (msg, match) => {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(\API ошибка: \ - \\);
+      throw new Error(`API РѕС€РёР±РєР°: ${response.status} - ${JSON.stringify(errorData)}`);
     }
 
     const data = await response.json();
 
     if (!data.choices || !data.choices[0]?.message?.content) {
-      throw new Error('шибка API: ' + JSON.stringify(data));
+      throw new Error('РћС€РёР±РєР° API: ' + JSON.stringify(data));
     }
 
     const code = data.choices[0].message.content;
 
-    bot.sendMessage(chatId, 'од сгенерирован. тправляю в GitHub...');
+    bot.sendMessage(chatId, 'РљРѕРґ СЃРіРµРЅРµСЂРёСЂРѕРІР°РЅ. РћС‚РїСЂР°РІР»СЏСЋ РІ GitHub...');
 
     if (githubToken) {
-      const repoName = \generated-bot-\\;
+      const repoName = `generated-bot-${msg.from?.id || Date.now()}`;
       await uploadToGithub(code, repoName, query, githubToken, chatId);
     } else {
-      bot.sendMessage(chatId, 'GitHub токен не установлен. од не загружен.');
+      bot.sendMessage(chatId, 'GitHub С‚РѕРєРµРЅ РЅРµ СѓСЃС‚Р°РЅРѕРІР»РµРЅ. РљРѕРґ РЅРµ Р·Р°РіСЂСѓР¶РµРЅ.');
     }
 
   } catch (e) {
-    bot.sendMessage(chatId, \шибка: \\);
+    bot.sendMessage(chatId, `РћС€РёР±РєР°: ${e.message}`);
   }
 });
 
-// агрузка в GitHub
+// Р—Р°РіСЂСѓР·РєР° РІ GitHub
 async function uploadToGithub(code, repoName, description, token, chatId) {
   const owner = 'garmaev-tech';
 
   try {
-    // Создание репозитория
-    await fetch(\https://api.github.com/user/repos\, {
+    // РЎРѕР·РґР°РЅРёРµ СЂРµРїРѕР·РёС‚РѕСЂРёСЏ
+    await fetch(`https://api.github.com/user/repos`, {
       method: 'POST',
       headers: {
-        'Authorization': \	oken \\,
+        'Authorization': `token ${token}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -241,40 +242,40 @@ async function uploadToGithub(code, repoName, description, token, chatId) {
       })
     });
 
-    // звлечение файлов из кода (упрощённо)
+    // РР·РІР»РµС‡РµРЅРёРµ С„Р°Р№Р»РѕРІ РёР· РєРѕРґР° (СѓРїСЂРѕС‰С‘РЅРЅРѕ)
     const files = extractFilesFromCode(code);
 
     for (const [filename, content] of Object.entries(files)) {
-      await fetch(\https://api.github.com/repos/\/\/contents/\\, {
+      await fetch(`https://api.github.com/repos/${owner}/${repoName}/contents/${filename}`, {
         method: 'PUT',
         headers: {
-          'Authorization': \	oken \\,
+          'Authorization': `token ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          message: \Add \\,
+          message: `Add ${filename}`,
           content: Buffer.from(content).toString('base64')
         })
       });
     }
 
-    bot.sendMessage(chatId, \роект загружен в GitHub: https://github.com/\/\\);
+    bot.sendMessage(chatId, `РџСЂРѕРµРєС‚ Р·Р°РіСЂСѓР¶РµРЅ РІ GitHub: https://github.com/${owner}/${repoName}`);
 
   } catch (e) {
-    bot.sendMessage(chatId, \шибка загрузки в GitHub: \\);
+    bot.sendMessage(chatId, `РћС€РёР±РєР° Р·Р°РіСЂСѓР·РєРё РІ GitHub: ${e.message}`);
   }
 }
 
-// звлечение файлов из ответа LLM (упрощённо)
+// РР·РІР»РµС‡РµРЅРёРµ С„Р°Р№Р»РѕРІ РёР· РѕС‚РІРµС‚Р° LLM (СѓРїСЂРѕС‰С‘РЅРЅРѕ)
 function extractFilesFromCode(code) {
   const files = {};
 
   const patterns = [
-    { regex: /javascript\n([\s\S]*?)\n/, name: 'index.js' },
-    { regex: /json\n([\s\S]*?)\n/, name: 'package.json' },
-    { regex: /dockerfile\n([\s\S]*?)\n/, name: 'Dockerfile' },
-    { regex: /markdown\n([\s\S]*?)\n/, name: 'README.md' },
-    { regex: /env\n([\s\S]*?)\n/, name: '.env.example' }
+    { regex: /```javascript\n([\s\S]*?)\n```/, name: 'index.js' },
+    { regex: /```json\n([\s\S]*?)\n```/, name: 'package.json' },
+    { regex: /```dockerfile\n([\s\S]*?)\n```/, name: 'Dockerfile' },
+    { regex: /```markdown\n([\s\S]*?)\n```/, name: 'README.md' },
+    { regex: /```env\n([\s\S]*?)\n```/, name: '.env.example' }
   ];
 
   for (const p of patterns) {
