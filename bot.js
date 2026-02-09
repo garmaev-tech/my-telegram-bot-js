@@ -1,20 +1,26 @@
 
 
+
 const TelegramBot = require('node-telegram-bot-api');
+const express = require('express');
 const fs = require('fs').promises;
 const fetch = require('node-fetch');
 
 require('dotenv').config();
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
-const bot = new TelegramBot(token, { polling: true });
+const bot = new TelegramBot(token, { webhook: true }); // Теперь через webhook
 
-const SETTINGS_FILE = 'bot_settings.json';
+const app = express();
+const PORT = process.env.PORT || 10000;
+
+// Для вебхуков
+app.use(express.json());
 
 // Загрузка настроек
 async function loadSettings() {
   try {
-    const data = await fs.readFile(SETTINGS_FILE, 'utf8');
+    const data = await fs.readFile('bot_settings.json', 'utf8');
     return JSON.parse(data);
   } catch (e) {
     return { apiKeys: {}, models: {}, githubToken: '' };
@@ -23,7 +29,7 @@ async function loadSettings() {
 
 // Сохранение настроек
 async function saveSettings(settings) {
-  await fs.writeFile(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+  await fs.writeFile('bot_settings.json', JSON.stringify(settings, null, 2));
 }
 
 // Главное меню с кнопками
@@ -288,3 +294,8 @@ function extractFilesFromCode(code) {
 
   return files;
 }
+
+// Привязка к порту
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
