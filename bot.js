@@ -10,7 +10,7 @@ const bot = new TelegramBot(token, { polling: false });
 
 const app = express();
 const PORT = process.env.PORT || 10000;
-const WEBHOOK_URL = process.env.WEBHOOK_URL || `https://my-telegram-bot-js.onrender.com/bot`; // ✅ Без пробелов
+const WEBHOOK_URL = process.env.WEBHOOK_URL || `https://my-telegram-bot-js.onrender.com/bot`;
 
 // Middleware для обработки JSON
 app.use(express.json({ verify: (req, res, buf) => { req.rawBody = buf; } }));
@@ -47,11 +47,12 @@ async function loadSettings() {
     const data = await fs.readFile('bot_settings.json', 'utf8');
     return JSON.parse(data);
   } catch (e) {
-    // Создаем файл с дефолтными настройками если не существует
     const defaultSettings = { 
-      apiKeys: {}, 
-      models: {}, 
-      githubToken: '' 
+      apiKeys: {},
+      models: {},
+      endpoints: {},
+      githubToken: '',
+      activeProvider: null // ✅ Новое поле
     };
     await saveSettings(defaultSettings);
     return defaultSettings;
@@ -60,13 +61,54 @@ async function loadSettings() {
 
 // Сохранение настроек
 async function saveSettings(settings) {
-  try {
-    await fs.writeFile('bot_settings.json', JSON.stringify(settings, null, 2));
-  } catch (error) {
-    console.error('Ошибка сохранения настроек:', error);
-    throw error;
-  }
+  await fs.writeFile('bot_settings.json', JSON.stringify(settings, null, 2));
 }
+
+// Конфигурация провайдеров
+const PROVIDER_CONFIG = {
+  openai: {
+    name: 'OpenAI',
+    defaultModel: 'gpt-3.5-turbo',
+    defaultEndpoint: 'https://api.openai.com/v1/chat/completions',
+    supportsCustomEndpoint: false
+  },
+  anthropic: {
+    name: 'Anthropic (Claude)',
+    defaultModel: 'claude-3-haiku-20240307',
+    defaultEndpoint: 'https://api.anthropic.com/v1/messages',
+    supportsCustomEndpoint: false
+  },
+  gemini: {
+    name: 'Google Gemini',
+    defaultModel: 'gemini-1.5-pro',
+    defaultEndpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent',
+    supportsCustomEndpoint: false
+  },
+  grok: {
+    name: 'Grok',
+    defaultModel: 'grok-beta',
+    defaultEndpoint: 'https://api.grok.com/v1/chat/completions',
+    supportsCustomEndpoint: true
+  },
+  deepseek: {
+    name: 'DeepSeek',
+    defaultModel: 'deepseek-chat',
+    defaultEndpoint: 'https://api.deepseek.com/v1/chat/completions',
+    supportsCustomEndpoint: false
+  },
+  mega: {
+    name: 'Mega',
+    defaultModel: 'mega-flash',
+    defaultEndpoint: 'https://ai.megallm.io/v1/chat/completions',
+    supportsCustomEndpoint: true
+  },
+  llama: {
+    name: 'Llama',
+    defaultModel: 'llama-3.1-70b',
+    defaultEndpoint: 'https://api.llama.ai/v1/chat/completions',
+    supportsCustomEndpoint: true
+  }
+};
 
 // Главное меню с кнопками
 function mainMenu() {
@@ -74,16 +116,20 @@ function mainMenu() {
     reply_markup: {
       inline_keyboard: [
         [
-          { text: '🔑 Установить API-ключ', callback_data: 'set_api_key' },
-          { text: '⚙️ Установить модель', callback_data: 'set_model' }
+          { text: '🔑 Установить API-ключ', callback_ 'set_api_key' },
+          { text: '⚙️ Установить модель', callback_ 'set_model' }
         ],
         [
-          { text: '📋 Текущая модель', callback_data: 'current_model' },
-          { text: '📤 GitHub токен', callback_data: 'set_github_token' }
+          { text: '🔗 Установить URL', callback_data: 'set_endpoint' },
+          { text: '📋 Текущие настройки', callback_ 'current_settings' }
         ],
         [
-          { text: '📝 Сгенерировать код', callback_data: 'generate_code' },
-          { text: '❓ Помощь', callback_data: 'help' }
+          { text: '📤 GitHub токен', callback_ 'set_github_token' },
+          { text: '📋 Список провайдеров', callback_ 'list_providers' }
+        ],
+        [
+          { text: '❓ Помощь', callback_ 'help' },
+          { text: '📝 Сгенерировать код', callback_ 'generate_code' }
         ]
       ]
     }
@@ -93,169 +139,315 @@ function mainMenu() {
 // Обработка команды /start
 bot.onText(/\/start/, (msg) => {
   const chatId = msg.chat.id;
-  bot.sendMessage(chatId, 'Привет! Выбери действие:', mainMenu());
+  bot.sendMessage(chatId, 'Привет! Используй команды или кнопки:', mainMenu());
 });
 
-// Обработка нажатий на кнопки
-bot.on('callback_query', async (query) => {
-  const chatId = query.message.chat.id;
-  const data = query.data;
+// Обработка команды /help
+bot.onText(/\/help/, (msg) => {
+  const chatId = msg.chat.id;
+  const helpText = `
+🤖 *Доступные команды:*
 
-  try {
-    if (data === 'set_api_key') {
-      bot.sendMessage(chatId, 'Отправь команду: /set_api_key provider api_key');
-    } else if (data === 'set_model') {
-      bot.sendMessage(chatId, 'Отправь команду: /set_model provider model_name');
-    } else if (data === 'current_model') {
-      bot.sendMessage(chatId, 'Отправь команду: /current_model provider');
-    } else if (data === 'set_github_token') {
-      bot.sendMessage(chatId, 'Отправь команду: /set_github_token token');
-    } else if (data === 'generate_code') {
-      bot.sendMessage(chatId, 'Отправь команду: /code описание_проекта');
-    } else if (data === 'help') {
-      bot.sendMessage(chatId, `
-Доступные команды:
-• /set_api_key - установить API-ключ
-• /set_model - установить модель
-• /current_model - показать текущую модель
-• /set_github_token - установить GitHub токен
-• /code - сгенерировать и загрузить код
-• /list_models - список доступных моделей
-`);
-    }
-  } catch (error) {
-    console.error('Ошибка обработки callback:', error);
-    bot.sendMessage(chatId, 'Произошла ошибка при обработке запроса.');
+*Основные команды:*
+• /start - Показать главное меню
+• /help - Показать это сообщение
+• /settings - Текущие настройки
+• /list_providers - Список провайдеров
+• /list_models - Список моделей
+• /select_provider <prov> - Выбрать активного провайдера
+
+*Настройки API:*
+• /set_api_key <prov> <key> - Установить API ключ
+• /set_model <prov> <model> - Установить модель
+• /set_endpoint <prov> <url> - Установить URL (если поддерживается)
+• /set_github_token <токен> - Установить GitHub токен
+
+*Генерация:*
+• /code <описание проекта> - Сгенерировать и загрузить код
+
+*Примеры:*
+• /select_provider mega
+• /set_api_key mega sk-...
+• /set_model mega gpt-4
+• /code "Telegram бот для учета финансов"
+  `;
+
+  bot.sendMessage(chatId, helpText, { parse_mode: 'Markdown' });
+});
+
+// Обработка команды /settings
+bot.onText(/\/settings/, async (msg) => {
+  const chatId = msg.chat.id;
+
+  const settings = await loadSettings();
+  let text = '⚙️ *Текущие настройки:*\n\n';
+
+  for (const provider in PROVIDER_CONFIG) {
+    const key = settings.apiKeys[provider] ? '✅' : '❌';
+    const model = settings.models[provider] || 'не установлена';
+    text += `${key} *${PROVIDER_CONFIG[provider].name}:* ${model}\n`;
   }
 
-  bot.answerCallbackQuery(query.id);
+  text += `\n*GitHub токен:* ${settings.githubToken ? '✅ Установлен' : '❌ Не установлен'}`;
+  text += `\n*Активный провайдер:* ${settings.activeProvider ? PROVIDER_CONFIG[settings.activeProvider]?.name || settings.activeProvider : 'не выбран'}`;
+
+  bot.sendMessage(chatId, text, { parse_mode: 'Markdown' });
 });
 
-// Команда для списка моделей
-bot.onText(/\/list_models/, async (msg) => {
+// Обработка команды /select_provider
+bot.onText(/\/select_provider (\S+)/, async (msg, match) => {
   const chatId = msg.chat.id;
+  const provider = match[1].toLowerCase();
 
-  const models = [
-    'gpt-3.5-turbo',
-    'gpt-4o-mini',
-    'gpt-4o',
-    'claude-sonnet-4-5-20250929',
-    'claude-haiku-4-5-20251001',
-    'mega-flash'
-  ];
+  if (!PROVIDER_CONFIG[provider]) {
+    bot.sendMessage(chatId, `❌ Неверный провайдер: ${provider}. Используйте /list_providers для списка.`);
+    return;
+  }
 
-  const message = 'Доступные модели:\n\n' + models.map(m => `- ${m}`).join('\n');
+  const settings = await loadSettings();
+  settings.activeProvider = provider;
+  await saveSettings(settings);
 
-  bot.sendMessage(chatId, message);
+  bot.sendMessage(chatId, `✅ Активный провайдер: ${PROVIDER_CONFIG[provider].name}`);
 });
 
-// Установка API-ключа
-bot.onText(/\/set_api_key (.+)/, async (msg, match) => {
+// Обработка команды /code (теперь использует activeProvider)
+bot.onText(/\/code (.+)/, async (msg, match) => {
   const chatId = msg.chat.id;
-  const [provider, key] = match[1].split(/\s+/);
+  const query = match[1];
+
+  const settings = await loadSettings();
+
+  // Проверяем, установлен ли активный провайдер
+  let selectedProvider = settings.activeProvider;
+
+  if (!selectedProvider) {
+    bot.sendMessage(chatId, '❌ Не выбран активный провайдер. Используйте /select_provider.');
+    return;
+  }
+
+  // Проверяем, есть ли у него ключ и модель
+  const apiKey = settings.apiKeys[selectedProvider];
+  const model = settings.models[selectedProvider];
+
+  if (!apiKey || !model) {
+    bot.sendMessage(chatId, `❌ У провайдера "${PROVIDER_CONFIG[selectedProvider].name}" не установлены API-ключ или модель. Используйте /set_api_key и /set_model.`);
+    return;
+  }
+
+  const githubToken = settings.githubToken;
+
+  const prompt = `
+    Сгенерируй ПОЛНЫЙ рабочий Telegram-бот на Node.js (JavaScript) для: ${query}
+    Включи: telegraf, express, axios, dotenv, package.json, Dockerfile для Render, .env.example, README.md.
+    Код должен запуститься без правок.
+  `;
+
+  bot.sendMessage(chatId, `🔄 Генерирую код через ${PROVIDER_CONFIG[selectedProvider].name}... ⏳`);
+
+  try {
+    const response = await callProviderAPI(selectedProvider, apiKey, model, prompt);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`API ошибка: ${response.status} - ${JSON.stringify(errorData)}`);
+    }
+
+    const data = await response.json();
+
+    // Для Gemini API ответ отличается
+    if (selectedProvider === 'gemini') {
+      if (!data.candidates || !data.candidates[0]?.content?.parts?.[0]?.text) {
+        throw new Error('Ошибка Gemini API: ' + JSON.stringify(data));
+      }
+      var code = data.candidates[0].content.parts[0].text;
+    } else {
+      if (!data.choices || !data.choices[0]?.message?.content) {
+        throw new Error('Ошибка API: ' + JSON.stringify(data));
+      }
+      var code = data.choices[0].message.content;
+    }
+
+    bot.sendMessage(chatId, '✅ Код сгенерирован! Отправляю в GitHub...');
+
+    if (githubToken) {
+      const repoName = `generated-bot-${msg.from?.id || Date.now()}`;
+      await uploadToGithub(code, repoName, query, githubToken, chatId);
+    } else {
+      bot.sendMessage(chatId, 'ℹ️ GitHub токен не установлен. Отправляю код напрямую...');
+      if (code.length > 4096) {
+        const parts = code.match(/[\s\S]{1,4000}/g);
+        for (let i = 0; i < parts.length; i++) {
+          await bot.sendMessage(chatId, `Часть ${i + 1}:\n\`\`\`javascript\n${parts[i]}\n\`\`\``, { parse_mode: 'Markdown' });
+        }
+      } else {
+        await bot.sendMessage(chatId, `\`\`\`javascript\n${code}\n\`\`\``, { parse_mode: 'Markdown' });
+      }
+    }
+  } catch (e) {
+    console.error('Ошибка генерации кода:', e);
+    bot.sendMessage(chatId, `❌ Ошибка: ${e.message}`);
+  }
+});
+
+// Остальные команды остаются без изменений
+bot.onText(/\/set_api_key (\S+)\s+(.+)/, async (msg, match) => {
+  const chatId = msg.chat.id;
+  const provider = match[1].toLowerCase();
+  const key = match[2].trim();
 
   if (!provider || !key) {
     bot.sendMessage(chatId, 'Формат: /set_api_key provider api_key');
     return;
   }
 
-  try {
-    const settings = await loadSettings();
-    settings.apiKeys[provider] = key;
-    await saveSettings(settings);
-
-    bot.sendMessage(chatId, `API-ключ для ${provider} установлен.`);
-  } catch (error) {
-    console.error('Ошибка установки API-ключа:', error);
-    bot.sendMessage(chatId, 'Произошла ошибка при установке API-ключа.');
+  if (!PROVIDER_CONFIG[provider]) {
+    bot.sendMessage(chatId, `❌ Неверный провайдер: ${provider}. Используйте /list_providers для списка.`);
+    return;
   }
+
+  const settings = await loadSettings();
+  settings.apiKeys[provider] = key;
+  await saveSettings(settings);
+
+  bot.sendMessage(chatId, `✅ API-ключ для ${PROVIDER_CONFIG[provider].name} установлен.`);
 });
 
-// Установка модели
-bot.onText(/\/set_model (.+)/, async (msg, match) => {
+bot.onText(/\/set_model (\S+)\s+(.+)/, async (msg, match) => {
   const chatId = msg.chat.id;
-  const [provider, model] = match[1].split(/\s+/);
+  const provider = match[1].toLowerCase();
+  const model = match[2].trim();
 
   if (!provider || !model) {
     bot.sendMessage(chatId, 'Формат: /set_model provider model_name');
     return;
   }
 
-  try {
-    const settings = await loadSettings();
-    settings.models[provider] = model;
-    await saveSettings(settings);
-
-    bot.sendMessage(chatId, `Модель для ${provider}: ${model}`);
-  } catch (error) {
-    console.error('Ошибка установки модели:', error);
-    bot.sendMessage(chatId, 'Произошла ошибка при установке модели.');
+  if (!PROVIDER_CONFIG[provider]) {
+    bot.sendMessage(chatId, `❌ Неверный провайдер: ${provider}. Используйте /list_providers для списка.`);
+    return;
   }
+
+  const settings = await loadSettings();
+  settings.models[provider] = model;
+  await saveSettings(settings);
+
+  bot.sendMessage(chatId, `✅ Модель для ${PROVIDER_CONFIG[provider].name}: ${model}`);
 });
 
-// Показ текущей модели
-bot.onText(/\/current_model (.+)/, async (msg, match) => {
+bot.onText(/\/set_endpoint (\S+)\s+(.+)/, async (msg, match) => {
   const chatId = msg.chat.id;
-  const provider = match[1];
+  const provider = match[1].toLowerCase();
+  const url = match[2].trim();
 
-  try {
-    const settings = await loadSettings();
-    const model = settings.models[provider];
-
-    if (!model) {
-      bot.sendMessage(chatId, `Модель для ${provider} не установлена.`);
-      return;
-    }
-
-    bot.sendMessage(chatId, `Текущая модель для ${provider}: ${model}`);
-  } catch (error) {
-    console.error('Ошибка получения модели:', error);
-    bot.sendMessage(chatId, 'Произошла ошибка при получении модели.');
+  if (!provider || !url) {
+    bot.sendMessage(chatId, 'Формат: /set_endpoint provider url');
+    return;
   }
+
+  if (!PROVIDER_CONFIG[provider]?.supportsCustomEndpoint) {
+    bot.sendMessage(chatId, `❌ ${PROVIDER_CONFIG[provider].name} не поддерживает кастомные URL.`);
+    return;
+  }
+
+  const settings = await loadSettings();
+  settings.endpoints[provider] = url;
+  await saveSettings(settings);
+
+  bot.sendMessage(chatId, `✅ Эндпоинт для ${PROVIDER_CONFIG[provider].name}: ${url}`);
 });
 
-// Установка GitHub токена
 bot.onText(/\/set_github_token (.+)/, async (msg, match) => {
   const chatId = msg.chat.id;
   const token = match[1].trim();
 
-  try {
-    const settings = await loadSettings();
-    settings.githubToken = token;
-    await saveSettings(settings);
-
-    bot.sendMessage(chatId, 'GitHub токен установлен.');
-  } catch (error) {
-    console.error('Ошибка установки GitHub токена:', error);
-    bot.sendMessage(chatId, 'Произошла ошибка при установке GitHub токена.');
+  if (token.length < 20) {
+    bot.sendMessage(chatId, '❌ GitHub токен слишком короткий.');
+    return;
   }
+
+  const settings = await loadSettings();
+  settings.githubToken = token;
+  await saveSettings(settings);
+
+  bot.sendMessage(chatId, '✅ GitHub токен установлен.');
 });
 
-// Генерация кода
-bot.onText(/\/code (.+)/, async (msg, match) => {
-  const chatId = msg.chat.id;
-  const query = match[1];
+// Обработка нажатий на кнопки (опционально)
+bot.on('callback_query', async (query) => {
+  const chatId = query.message.chat.id;
+  const data = query.data;
 
-  try {
+  if (data === 'set_api_key') {
+    bot.sendMessage(chatId, 'Формат: /set_api_key provider api_key');
+  } else if (data === 'set_model') {
+    bot.sendMessage(chatId, 'Формат: /set_model provider model_name');
+  } else if (data === 'set_endpoint') {
+    bot.sendMessage(chatId, 'Формат: /set_endpoint provider url (только для провайдеров с поддержкой)');
+  } else if (data === 'current_settings') {
     const settings = await loadSettings();
-    const apiKey = settings.apiKeys['mega'];
-    const model = settings.models['mega'];
-    const githubToken = settings.githubToken;
-
-    if (!apiKey || !model) {
-      bot.sendMessage(chatId, 'Сначала установите API-ключ и модель: /set_api_key и /set_model\nПример: /set_api_key mega ваш_api_ключ\n/set_model mega mega-flash');
-      return;
+    let text = 'Текущие настройки:\n';
+    for (const provider in PROVIDER_CONFIG) {
+      const key = settings.apiKeys[provider] ? '✅' : '❌';
+      const model = settings.models[provider] || 'не установлена';
+      text += `${key} ${PROVIDER_CONFIG[provider].name}: ${model}\n`;
     }
+    text += `\nАктивный провайдер: ${settings.activeProvider || 'не выбран'}`;
+    bot.sendMessage(chatId, text);
+  } else if (data === 'list_providers') {
+    let text = 'Доступные провайдеры:\n';
+    for (const [key, config] of Object.entries(PROVIDER_CONFIG)) {
+      text += `- ${config.name} (${key}): ${config.defaultModel}\n`;
+    }
+    bot.sendMessage(chatId, text);
+  } else if (data === 'set_github_token') {
+    bot.sendMessage(chatId, 'Формат: /set_github_token token');
+  } else if (data === 'help') {
+    bot.sendMessage(chatId, 'Используй команду /help для списка команд.');
+  } else if (data === 'generate_code') {
+    bot.sendMessage(chatId, 'Формат: /code описание_проекта');
+  }
 
-    const prompt = `
-      Сгенерируй ПОЛНЫЙ рабочий Telegram-бот на Node.js (JavaScript) для: ${query}
-      Включи: telegraf, express, axios, dotenv, package.json, Dockerfile для Render, .env.example, README.md.
-      Код должен запуститься без правок.
-    `;
+  bot.answerCallbackQuery(query.id);
+});
 
-    bot.sendMessage(chatId, 'Генерирую код... ⏳');
+// Функция вызова API
+async function callProviderAPI(provider, apiKey, model, prompt) {
+  const settings = await loadSettings();
+  const endpoint = settings.endpoints[provider] || PROVIDER_CONFIG[provider].defaultEndpoint;
 
-    const response = await fetch('https://ai.megallm.io/v1/chat/completions', { // ✅ Без пробелов
+  if (provider === 'gemini') {
+    return fetch(`${endpoint}?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          role: 'user',
+          parts: [{ text: prompt }]
+        }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 2048
+        }
+      })
+    });
+  } else if (provider === 'anthropic') {
+    return fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: model,
+        max_tokens: 1024,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+  } else {
+    // OpenAI-совместимый API
+    return fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -265,129 +457,59 @@ bot.onText(/\/code (.+)/, async (msg, match) => {
         model: model,
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.7,
-        max_tokens: 4000
+        max_tokens: 2048
       })
     });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(`API ошибка: ${response.status} - ${JSON.stringify(errorData)}`);
-    }
-
-    const data = await response.json();
-
-    if (!data.choices || !data.choices[0]?.message?.content) {
-      throw new Error('Ошибка API: ' + JSON.stringify(data));
-    }
-
-    const code = data.choices[0].message.content;
-
-    bot.sendMessage(chatId, '✅ Код сгенерирован! Отправляю в GitHub...');
-
-    if (githubToken) {
-      const repoName = `generated-bot-${msg.from?.id || Date.now()}`;
-      await uploadToGithub(code, repoName, query, githubToken, chatId);
-    } else {
-      // Отправляем код напрямую если нет GitHub токена
-      bot.sendMessage(chatId, 'GitHub токен не установлен. Отправляю код напрямую...');
-      if (code.length > 4096) {
-        // Разбиваем на части если код слишком длинный
-        const parts = code.match(/[\s\S]{1,4000}/g);
-        for (let i = 0; i < parts.length; i++) {
-          await bot.sendMessage(chatId, `Часть ${i + 1}:\n\`\`\`javascript\n${parts[i]}\n\`\`\``, { parse_mode: 'Markdown' });
-        }
-      } else {
-        await bot.sendMessage(chatId, `\`\`\`javascript\n${code}\n\`\`\``, { parse_mode: 'Markdown' });
-      }
-    }
-
-  } catch (e) {
-    console.error('Ошибка генерации кода:', e);
-    bot.sendMessage(chatId, `❌ Ошибка: ${e.message}`);
   }
-});
+}
 
 // Загрузка в GitHub
 async function uploadToGithub(code, repoName, description, token, chatId) {
   const owner = 'garmaev-tech';
 
   try {
-    // Проверяем существование репозитория
     let repoExists = false;
     try {
-      await fetch(`https://api.github.com/repos/${owner}/${repoName}`, { // ✅ Без пробелов
-        headers: {
-          'Authorization': `token ${token}`,
-          'Accept': 'application/vnd.github.v3+json'
-        }
+      await fetch(`https://api.github.com/repos/${owner}/${repoName}`, {
+        headers: { 'Authorization': `token ${token}` }
       });
       repoExists = true;
-    } catch (error) {
-      // Репозитория не существует, создаем новый
-    }
+    } catch (e) {}
 
     if (!repoExists) {
-      // Создание репозитория
-      const createRepoResponse = await fetch(`https://api.github.com/user/repos`, { // ✅ Без пробелов
+      await fetch(`https://api.github.com/user/repos`, {
         method: 'POST',
-        headers: {
-          'Authorization': `token ${token}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/vnd.github.v3+json'
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `token ${token}` },
         body: JSON.stringify({
           name: repoName,
           description: description,
-          private: true,
-          auto_init: false
+          private: true
         })
       });
-
-      if (!createRepoResponse.ok) {
-        throw new Error(`Ошибка создания репозитория: ${createRepoResponse.status}`);
-      }
     }
 
-    // Извлечение файлов из кода
     const files = extractFilesFromCode(code);
 
-    if (Object.keys(files).length === 0) {
-      throw new Error('Не удалось извлечь файлы из сгенерированного кода');
-    }
-
-    // Загружаем файлы
     for (const [filename, content] of Object.entries(files)) {
-      const uploadResponse = await fetch(`https://api.github.com/repos/${owner}/${repoName}/contents/${filename}`, { // ✅ Без пробелов
+      await fetch(`https://api.github.com/repos/${owner}/${repoName}/contents/${filename}`, {
         method: 'PUT',
-        headers: {
-          'Authorization': `token ${token}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/vnd.github.v3+json'
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `token ${token}` },
         body: JSON.stringify({
           message: `Add ${filename}`,
           content: Buffer.from(content).toString('base64')
         })
       });
-
-      if (!uploadResponse.ok) {
-        console.error(`Ошибка загрузки ${filename}:`, await uploadResponse.text());
-      }
     }
 
-    bot.sendMessage(chatId, `✅ Проект успешно загружен в GitHub!\nСсылка: https://github.com/${owner}/${repoName}`); // ✅ Без пробелов
-
+    bot.sendMessage(chatId, `✅ Проект загружен: https://github.com/${owner}/${repoName}`);
   } catch (e) {
-    console.error('Ошибка загрузки в GitHub:', e);
-    throw new Error(`GitHub: ${e.message}`);
+    bot.sendMessage(chatId, `❌ Ошибка GitHub: ${e.message}`);
   }
 }
 
-// Извлечение файлов из ответа LLM
+// Извлечение файлов из кода
 function extractFilesFromCode(code) {
   const files = {};
-
-  // Ищем блоки кода с указанием языка
   const codeBlocks = code.match(/```(\w+)?\n([\s\S]*?)```/g) || [];
 
   for (const block of codeBlocks) {
@@ -395,34 +517,19 @@ function extractFilesFromCode(code) {
     if (match) {
       const lang = match[1] || 'txt';
       const content = match[2].trim();
-      
       let filename;
       switch (lang.toLowerCase()) {
-        case 'javascript':
-        case 'js':
-          filename = 'index.js';
-          break;
-        case 'json':
-          filename = 'package.json';
-          break;
-        case 'dockerfile':
-          filename = 'Dockerfile';
-          break;
-        case 'markdown':
-          filename = 'README.md';
-          break;
-        case 'env':
-          filename = '.env.example';
-          break;
-        default:
-          filename = `file.${lang}`;
+        case 'javascript': filename = 'index.js'; break;
+        case 'json': filename = 'package.json'; break;
+        case 'dockerfile': filename = 'Dockerfile'; break;
+        case 'markdown': filename = 'README.md'; break;
+        case 'env': filename = '.env.example'; break;
+        default: filename = `file.${lang}`;
       }
-      
       files[filename] = content;
     }
   }
 
-  // Если блоки кода не найдены, сохраняем весь текст как index.js
   if (Object.keys(files).length === 0 && code.trim()) {
     files['index.js'] = code.trim();
   }
@@ -435,14 +542,3 @@ app.listen(PORT, async () => {
   console.log(`Server is running on port ${PORT}`);
   await setupWebhook();
 });
-
-// Обработка ошибок
-process.on('unhandledRejection', (error) => {
-  console.error('Unhandled Rejection:', error);
-});
-
-process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
-});
-
-
