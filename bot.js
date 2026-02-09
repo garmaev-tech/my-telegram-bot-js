@@ -52,7 +52,7 @@ async function loadSettings() {
       models: {},
       endpoints: {},
       githubToken: '',
-      activeProvider: null // ✅ Новое поле
+      activeProvider: null
     };
     await saveSettings(defaultSettings);
     return defaultSettings;
@@ -120,7 +120,7 @@ function mainMenu() {
           { text: '⚙️ Установить модель', callback_ 'set_model' }
         ],
         [
-          { text: '🔗 Установить URL', callback_data: 'set_endpoint' },
+          { text: '🔗 Установить URL', callback_ 'set_endpoint' },
           { text: '📋 Текущие настройки', callback_ 'current_settings' }
         ],
         [
