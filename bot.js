@@ -110,51 +110,20 @@ const PROVIDER_CONFIG = {
   }
 };
 
-// Главное меню с кнопками
-function mainMenu() {
-  return {
-    reply_markup: {
-      inline_keyboard: [
-        [
-          { text: '🔑 Установить API-ключ', callback_ 'set_api_key' },
-          { text: '⚙️ Установить модель', callback_data: 'set_model' }
-        ],
-        [
-          { text: '🔗 Установить URL', callback_ 'set_endpoint' },
-          { text: '📋 Текущие настройки', callback_ 'current_settings' }
-        ],
-        [
-          { text: '📤 GitHub токен', callback_ 'set_github_token' },
-          { text: '📋 Список провайдеров', callback_ 'list_providers' }
-        ],
-        [
-          { text: '❓ Помощь', callback_ 'help' },
-          { text: '📝 Сгенерировать код', callback_ 'generate_code' }
-        ]
-      ]
-    }
-  };
-}
-
 // Обработка команды /start
 bot.onText(/\/start/, (msg) => {
-  try {
-    const chatId = msg.chat.id;
-    bot.sendMessage(chatId, 'Привет! Используй команды или кнопки:', mainMenu());
-  } catch (e) {
-    console.error('Ошибка команды /start:', e);
-  }
+  const chatId = msg.chat.id;
+  bot.sendMessage(chatId, 'Привет! Используй команды:');
 });
 
 // Обработка команды /help
 bot.onText(/\/help/, (msg) => {
-  try {
-    const chatId = msg.chat.id;
-    const helpText = `
+  const chatId = msg.chat.id;
+  const helpText = `
 🤖 *Доступные команды:*
 
 *Основные команды:*
-• /start - Показать главное меню
+• /start - Показать это сообщение
 • /help - Показать это сообщение
 • /settings - Текущие настройки
 • /list_providers - Список провайдеров
@@ -177,285 +146,205 @@ bot.onText(/\/help/, (msg) => {
 • /code "Telegram бот для учета финансов"
   `;
 
-    bot.sendMessage(chatId, helpText, { parse_mode: 'Markdown' });
-  } catch (e) {
-    console.error('Ошибка команды /help:', e);
-  }
+  bot.sendMessage(chatId, helpText, { parse_mode: 'Markdown' });
 });
 
 // Обработка команды /settings
 bot.onText(/\/settings/, async (msg) => {
-  try {
-    const chatId = msg.chat.id;
+  const chatId = msg.chat.id;
 
-    const settings = await loadSettings();
-    let text = '⚙️ *Текущие настройки:*\n\n';
+  const settings = await loadSettings();
+  let text = '⚙️ *Текущие настройки:*\n\n';
 
-    for (const provider in PROVIDER_CONFIG) {
-      const key = settings.apiKeys[provider] ? '✅' : '❌';
-      const model = settings.models[provider] || 'не установлена';
-      text += `${key} *${PROVIDER_CONFIG[provider].name}:* ${model}\n`;
-    }
-
-    text += `\n*GitHub токен:* ${settings.githubToken ? '✅ Установлен' : '❌ Не установлен'}`;
-    text += `\n*Активный провайдер:* ${settings.activeProvider ? PROVIDER_CONFIG[settings.activeProvider]?.name || settings.activeProvider : 'не выбран'}`;
-
-    bot.sendMessage(chatId, text, { parse_mode: 'Markdown' });
-  } catch (e) {
-    console.error('Ошибка команды /settings:', e);
-    bot.sendMessage(msg.chat.id, '❌ Ошибка при загрузке настроек.');
+  for (const provider in PROVIDER_CONFIG) {
+    const key = settings.apiKeys[provider] ? '✅' : '❌';
+    const model = settings.models[provider] || 'не установлена';
+    text += `${key} *${PROVIDER_CONFIG[provider].name}:* ${model}\n`;
   }
+
+  text += `\n*GitHub токен:* ${settings.githubToken ? '✅ Установлен' : '❌ Не установлен'}`;
+  text += `\n*Активный провайдер:* ${settings.activeProvider ? PROVIDER_CONFIG[settings.activeProvider]?.name || settings.activeProvider : 'не выбран'}`;
+
+  bot.sendMessage(chatId, text, { parse_mode: 'Markdown' });
 });
 
 // Обработка команды /select_provider
 bot.onText(/\/select_provider (\S+)/, async (msg, match) => {
-  try {
-    const chatId = msg.chat.id;
-    const provider = match[1].toLowerCase();
+  const chatId = msg.chat.id;
+  const provider = match[1].toLowerCase();
 
-    if (!PROVIDER_CONFIG[provider]) {
-      bot.sendMessage(chatId, `❌ Неверный провайдер: ${provider}. Используйте /list_providers для списка.`);
-      return;
-    }
-
-    const settings = await loadSettings();
-    settings.activeProvider = provider;
-    await saveSettings(settings);
-
-    bot.sendMessage(chatId, `✅ Активный провайдер: ${PROVIDER_CONFIG[provider].name}`);
-  } catch (e) {
-    console.error('Ошибка команды /select_provider:', e);
-    bot.sendMessage(msg.chat.id, '❌ Ошибка при выборе провайдера.');
+  if (!PROVIDER_CONFIG[provider]) {
+    bot.sendMessage(chatId, `❌ Неверный провайдер: ${provider}. Используйте /list_providers для списка.`);
+    return;
   }
+
+  const settings = await loadSettings();
+  settings.activeProvider = provider;
+  await saveSettings(settings);
+
+  bot.sendMessage(chatId, `✅ Активный провайдер: ${PROVIDER_CONFIG[provider].name}`);
 });
 
 // Обработка команды /code (теперь использует activeProvider)
 bot.onText(/\/code (.+)/, async (msg, match) => {
+  const chatId = msg.chat.id;
+  const query = match[1];
+
+  const settings = await loadSettings();
+
+  // Проверяем, установлен ли активный провайдер
+  let selectedProvider = settings.activeProvider;
+
+  if (!selectedProvider) {
+    bot.sendMessage(chatId, '❌ Не выбран активный провайдер. Используйте /select_provider.');
+    return;
+  }
+
+  // Проверяем, есть ли у него ключ и модель
+  const apiKey = settings.apiKeys[selectedProvider];
+  const model = settings.models[selectedProvider];
+
+  if (!apiKey || !model) {
+    bot.sendMessage(chatId, `❌ У провайдера "${PROVIDER_CONFIG[selectedProvider].name}" не установлены API-ключ или модель. Используйте /set_api_key и /set_model.`);
+    return;
+  }
+
+  const githubToken = settings.githubToken;
+
+  const prompt = `
+    Сгенерируй ПОЛНЫЙ рабочий Telegram-бот на Node.js (JavaScript) для: ${query}
+    Включи: telegraf, express, axios, dotenv, package.json, Dockerfile для Render, .env.example, README.md.
+    Код должен запуститься без правок.
+  `;
+
+  bot.sendMessage(chatId, `🔄 Генерирую код через ${PROVIDER_CONFIG[selectedProvider].name}... ⏳`);
+
   try {
-    const chatId = msg.chat.id;
-    const query = match[1];
+    const response = await callProviderAPI(selectedProvider, apiKey, model, prompt);
 
-    const settings = await loadSettings();
-
-    // Проверяем, установлен ли активный провайдер
-    let selectedProvider = settings.activeProvider;
-
-    if (!selectedProvider) {
-      bot.sendMessage(chatId, '❌ Не выбран активный провайдер. Используйте /select_provider.');
-      return;
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`API ошибка: ${response.status} - ${JSON.stringify(errorData)}`);
     }
 
-    // Проверяем, есть ли у него ключ и модель
-    const apiKey = settings.apiKeys[selectedProvider];
-    const model = settings.models[selectedProvider];
+    const data = await response.json();
 
-    if (!apiKey || !model) {
-      bot.sendMessage(chatId, `❌ У провайдера "${PROVIDER_CONFIG[selectedProvider].name}" не установлены API-ключ или модель. Используйте /set_api_key и /set_model.`);
-      return;
+    // Для Gemini API ответ отличается
+    if (selectedProvider === 'gemini') {
+      if (!data.candidates || !data.candidates[0]?.content?.parts?.[0]?.text) {
+        throw new Error('Ошибка Gemini API: ' + JSON.stringify(data));
+      }
+      var code = data.candidates[0].content.parts[0].text;
+    } else {
+      if (!data.choices || !data.choices[0]?.message?.content) {
+        throw new Error('Ошибка API: ' + JSON.stringify(data));
+      }
+      var code = data.choices[0].message.content;
     }
 
-    const githubToken = settings.githubToken;
+    bot.sendMessage(chatId, '✅ Код сгенерирован! Отправляю в GitHub...');
 
-    const prompt = `
-      Сгенерируй ПОЛНЫЙ рабочий Telegram-бот на Node.js (JavaScript) для: ${query}
-      Включи: telegraf, express, axios, dotenv, package.json, Dockerfile для Render, .env.example, README.md.
-      Код должен запуститься без правок.
-    `;
-
-    bot.sendMessage(chatId, `🔄 Генерирую код через ${PROVIDER_CONFIG[selectedProvider].name}... ⏳`);
-
-    try {
-      const response = await callProviderAPI(selectedProvider, apiKey, model, prompt);
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(`API ошибка: ${response.status} - ${JSON.stringify(errorData)}`);
-      }
-
-      const data = await response.json();
-
-      // Для Gemini API ответ отличается
-      if (selectedProvider === 'gemini') {
-        if (!data.candidates || !data.candidates[0]?.content?.parts?.[0]?.text) {
-          throw new Error('Ошибка Gemini API: ' + JSON.stringify(data));
+    if (githubToken) {
+      const repoName = `generated-bot-${msg.from?.id || Date.now()}`;
+      await uploadToGithub(code, repoName, query, githubToken, chatId);
+    } else {
+      bot.sendMessage(chatId, 'ℹ️ GitHub токен не установлен. Отправляю код напрямую...');
+      if (code.length > 4096) {
+        const parts = code.match(/[\s\S]{1,4000}/g);
+        for (let i = 0; i < parts.length; i++) {
+          await bot.sendMessage(chatId, `Часть ${i + 1}:\n\`\`\`javascript\n${parts[i]}\n\`\`\``, { parse_mode: 'Markdown' });
         }
-        var code = data.candidates[0].content.parts[0].text;
       } else {
-        if (!data.choices || !data.choices[0]?.message?.content) {
-          throw new Error('Ошибка API: ' + JSON.stringify(data));
-        }
-        var code = data.choices[0].message.content;
+        await bot.sendMessage(chatId, `\`\`\`javascript\n${code}\n\`\`\``, { parse_mode: 'Markdown' });
       }
-
-      bot.sendMessage(chatId, '✅ Код сгенерирован! Отправляю в GitHub...');
-
-      if (githubToken) {
-        const repoName = `generated-bot-${msg.from?.id || Date.now()}`;
-        await uploadToGithub(code, repoName, query, githubToken, chatId);
-      } else {
-        bot.sendMessage(chatId, 'ℹ️ GitHub токен не установлен. Отправляю код напрямую...');
-        if (code.length > 4096) {
-          const parts = code.match(/[\s\S]{1,4000}/g);
-          for (let i = 0; i < parts.length; i++) {
-            await bot.sendMessage(chatId, `Часть ${i + 1}:\n\`\`\`javascript\n${parts[i]}\n\`\`\``, { parse_mode: 'Markdown' });
-          }
-        } else {
-          await bot.sendMessage(chatId, `\`\`\`javascript\n${code}\n\`\`\``, { parse_mode: 'Markdown' });
-        }
-      }
-    } catch (e) {
-      console.error('Ошибка генерации кода:', e);
-      bot.sendMessage(chatId, `❌ Ошибка: ${e.message}`);
     }
   } catch (e) {
-    console.error('Ошибка команды /code:', e);
-    bot.sendMessage(msg.chat.id, '❌ Ошибка при выполнении команды /code.');
+    console.error('Ошибка генерации кода:', e);
+    bot.sendMessage(chatId, `❌ Ошибка: ${e.message}`);
   }
 });
 
-// Остальные команды остаются без изменений
+// Остальные команды
 bot.onText(/\/set_api_key (\S+)\s+(.+)/, async (msg, match) => {
-  try {
-    const chatId = msg.chat.id;
-    const provider = match[1].toLowerCase();
-    const key = match[2].trim();
+  const chatId = msg.chat.id;
+  const provider = match[1].toLowerCase();
+  const key = match[2].trim();
 
-    if (!provider || !key) {
-      bot.sendMessage(chatId, 'Формат: /set_api_key provider api_key');
-      return;
-    }
-
-    if (!PROVIDER_CONFIG[provider]) {
-      bot.sendMessage(chatId, `❌ Неверный провайдер: ${provider}. Используйте /list_providers для списка.`);
-      return;
-    }
-
-    const settings = await loadSettings();
-    settings.apiKeys[provider] = key;
-    await saveSettings(settings);
-
-    bot.sendMessage(chatId, `✅ API-ключ для ${PROVIDER_CONFIG[provider].name} установлен.`);
-  } catch (e) {
-    console.error('Ошибка команды /set_api_key:', e);
-    bot.sendMessage(msg.chat.id, '❌ Ошибка при установке API-ключа.');
+  if (!provider || !key) {
+    bot.sendMessage(chatId, 'Формат: /set_api_key provider api_key');
+    return;
   }
+
+  if (!PROVIDER_CONFIG[provider]) {
+    bot.sendMessage(chatId, `❌ Неверный провайдер: ${provider}. Используйте /list_providers для списка.`);
+    return;
+  }
+
+  const settings = await loadSettings();
+  settings.apiKeys[provider] = key;
+  await saveSettings(settings);
+
+  bot.sendMessage(chatId, `✅ API-ключ для ${PROVIDER_CONFIG[provider].name} установлен.`);
 });
 
 bot.onText(/\/set_model (\S+)\s+(.+)/, async (msg, match) => {
-  try {
-    const chatId = msg.chat.id;
-    const provider = match[1].toLowerCase();
-    const model = match[2].trim();
+  const chatId = msg.chat.id;
+  const provider = match[1].toLowerCase();
+  const model = match[2].trim();
 
-    if (!provider || !model) {
-      bot.sendMessage(chatId, 'Формат: /set_model provider model_name');
-      return;
-    }
-
-    if (!PROVIDER_CONFIG[provider]) {
-      bot.sendMessage(chatId, `❌ Неверный провайдер: ${provider}. Используйте /list_providers для списка.`);
-      return;
-    }
-
-    const settings = await loadSettings();
-    settings.models[provider] = model;
-    await saveSettings(settings);
-
-    bot.sendMessage(chatId, `✅ Модель для ${PROVIDER_CONFIG[provider].name}: ${model}`);
-  } catch (e) {
-    console.error('Ошибка команды /set_model:', e);
-    bot.sendMessage(msg.chat.id, '❌ Ошибка при установке модели.');
+  if (!provider || !model) {
+    bot.sendMessage(chatId, 'Формат: /set_model provider model_name');
+    return;
   }
+
+  if (!PROVIDER_CONFIG[provider]) {
+    bot.sendMessage(chatId, `❌ Неверный провайдер: ${provider}. Используйте /list_providers для списка.`);
+    return;
+  }
+
+  const settings = await loadSettings();
+  settings.models[provider] = model;
+  await saveSettings(settings);
+
+  bot.sendMessage(chatId, `✅ Модель для ${PROVIDER_CONFIG[provider].name}: ${model}`);
 });
 
 bot.onText(/\/set_endpoint (\S+)\s+(.+)/, async (msg, match) => {
-  try {
-    const chatId = msg.chat.id;
-    const provider = match[1].toLowerCase();
-    const url = match[2].trim();
+  const chatId = msg.chat.id;
+  const provider = match[1].toLowerCase();
+  const url = match[2].trim();
 
-    if (!provider || !url) {
-      bot.sendMessage(chatId, 'Формат: /set_endpoint provider url');
-      return;
-    }
-
-    if (!PROVIDER_CONFIG[provider]?.supportsCustomEndpoint) {
-      bot.sendMessage(chatId, `❌ ${PROVIDER_CONFIG[provider].name} не поддерживает кастомные URL.`);
-      return;
-    }
-
-    const settings = await loadSettings();
-    settings.endpoints[provider] = url;
-    await saveSettings(settings);
-
-    bot.sendMessage(chatId, `✅ Эндпоинт для ${PROVIDER_CONFIG[provider].name}: ${url}`);
-  } catch (e) {
-    console.error('Ошибка команды /set_endpoint:', e);
-    bot.sendMessage(msg.chat.id, '❌ Ошибка при установке эндпоинта.');
+  if (!provider || !url) {
+    bot.sendMessage(chatId, 'Формат: /set_endpoint provider url');
+    return;
   }
+
+  if (!PROVIDER_CONFIG[provider]?.supportsCustomEndpoint) {
+    bot.sendMessage(chatId, `❌ ${PROVIDER_CONFIG[provider].name} не поддерживает кастомные URL.`);
+    return;
+  }
+
+  const settings = await loadSettings();
+  settings.endpoints[provider] = url;
+  await saveSettings(settings);
+
+  bot.sendMessage(chatId, `✅ Эндпоинт для ${PROVIDER_CONFIG[provider].name}: ${url}`);
 });
 
 bot.onText(/\/set_github_token (.+)/, async (msg, match) => {
-  try {
-    const chatId = msg.chat.id;
-    const token = match[1].trim();
+  const chatId = msg.chat.id;
+  const token = match[1].trim();
 
-    if (token.length < 20) {
-      bot.sendMessage(chatId, '❌ GitHub токен слишком короткий.');
-      return;
-    }
-
-    const settings = await loadSettings();
-    settings.githubToken = token;
-    await saveSettings(settings);
-
-    bot.sendMessage(chatId, '✅ GitHub токен установлен.');
-  } catch (e) {
-    console.error('Ошибка команды /set_github_token:', e);
-    bot.sendMessage(msg.chat.id, '❌ Ошибка при установке GitHub токена.');
+  if (token.length < 20) {
+    bot.sendMessage(chatId, '❌ GitHub токен слишком короткий.');
+    return;
   }
-});
 
-// Обработка нажатий на кнопки (опционально)
-bot.on('callback_query', async (query) => {
-  try {
-    const chatId = query.message.chat.id;
-    const data = query.data;
+  const settings = await loadSettings();
+  settings.githubToken = token;
+  await saveSettings(settings);
 
-    if (data === 'set_api_key') {
-      bot.sendMessage(chatId, 'Формат: /set_api_key provider api_key');
-    } else if (data === 'set_model') {
-      bot.sendMessage(chatId, 'Формат: /set_model provider model_name');
-    } else if (data === 'set_endpoint') {
-      bot.sendMessage(chatId, 'Формат: /set_endpoint provider url (только для провайдеров с поддержкой)');
-    } else if (data === 'current_settings') {
-      const settings = await loadSettings();
-      let text = 'Текущие настройки:\n';
-      for (const provider in PROVIDER_CONFIG) {
-        const key = settings.apiKeys[provider] ? '✅' : '❌';
-        const model = settings.models[provider] || 'не установлена';
-        text += `${key} ${PROVIDER_CONFIG[provider].name}: ${model}\n`;
-      }
-      text += `\nАктивный провайдер: ${settings.activeProvider || 'не выбран'}`;
-      bot.sendMessage(chatId, text);
-    } else if (data === 'list_providers') {
-      let text = 'Доступные провайдеры:\n';
-      for (const [key, config] of Object.entries(PROVIDER_CONFIG)) {
-        text += `- ${config.name} (${key}): ${config.defaultModel}\n`;
-      }
-      bot.sendMessage(chatId, text);
-    } else if (data === 'set_github_token') {
-      bot.sendMessage(chatId, 'Формат: /set_github_token token');
-    } else if (data === 'help') {
-      bot.sendMessage(chatId, 'Используй команду /help для списка команд.');
-    } else if (data === 'generate_code') {
-      bot.sendMessage(chatId, 'Формат: /code описание_проекта');
-    }
-
-    bot.answerCallbackQuery(query.id);
-  } catch (e) {
-    console.error('Ошибка обработки callback:', e);
-  }
+  bot.sendMessage(chatId, '✅ GitHub токен установлен.');
 });
 
 // Функция вызова API
