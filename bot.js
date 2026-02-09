@@ -1,6 +1,5 @@
 
 
-
 const TelegramBot = require('node-telegram-bot-api');
 const express = require('express');
 const fs = require('fs').promises;
@@ -9,13 +8,18 @@ const fetch = require('node-fetch');
 require('dotenv').config();
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
-const bot = new TelegramBot(token, { webhook: true }); // Теперь через webhook
+const bot = new TelegramBot(token, { webhook: true });
 
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// Для вебхуков
-app.use(express.json());
+// Middleware для вебхуков
+app.use('/bot', bot.webHookCallback('/'));
+
+// Для теста — если перейти на /
+app.get('/', (req, res) => {
+  res.send('Bot is running!');
+});
 
 // Загрузка настроек
 async function loadSettings() {
@@ -38,16 +42,16 @@ function mainMenu() {
     reply_markup: {
       inline_keyboard: [
         [
-          { text: '🔑 Установить API-ключ', callback_data: 'set_api_key' },
-          { text: '⚙️ Установить модель', callback_data: 'set_model' }
+          { text: '🔑 Установить API-ключ', callback_ 'set_api_key' },
+          { text: '⚙️ Установить модель', callback_ 'set_model' }
         ],
         [
-          { text: '📋 Текущая модель', callback_data: 'current_model' },
+          { text: '📋 Текущая модель', callback_ 'current_model' },
           { text: '📤 GitHub токен', callback_data: 'set_github_token' }
         ],
         [
-          { text: '📝 Сгенерировать код', callback_data: 'generate_code' },
-          { text: '❓ Помощь', callback_data: 'help' }
+          { text: '📝 Сгенерировать код', callback_ 'generate_code' },
+          { text: '❓ Помощь', callback_ 'help' }
         ]
       ]
     }
